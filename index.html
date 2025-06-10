@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fisiko Receipts con Firebase</title>
+  <link rel="manifest" href="manifest.json" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f2f2f2;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    input, select, button {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    table, th, td {
+      border: 1px solid #ddd;
+    }
+    th, td {
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background-color: #007BFF;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Login</h2>
+    <input type="email" id="email" placeholder="Email" required />
+    <input type="password" id="password" placeholder="Password" required />
+    <button onclick="login()">Login</button>
+    <hr/>
+    <h2>Nuova Ricevuta</h2>
+    <form id="receiptForm">
+      <input type="text" id="nome" placeholder="Nome allievo" required />
+      <input type="text" id="corso" placeholder="Corso (es. Bachata F1)" required />
+      <input type="number" id="lezioni" placeholder="N. lezioni" value="8" required />
+      <input type="number" id="costo" placeholder="Costo (€)" step="0.01" required />
+      <button type="submit">Salva Ricevuta</button>
+    </form>
+
+    <h3>Ricevute Giornaliere</h3>
+    <table id="receiptsTable">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Corso</th>
+          <th>Lezioni</th>
+          <th>Costo</th>
+          <th>Data</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
+    import { getFirestore, collection, addDoc, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCBc0MZggkCgkz-lk-B85Cg6ve6QYjI6k0",
+      authDomain: "fisiko-app.firebaseapp.com",
+      projectId: "fisiko-app",
+      storageBucket: "fisiko-app.firebasestorage.app",
+      messagingSenderId: "801160176437",
+      appId: "1:801160176437:web:0ccad00ef2fe191894a27c"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth();
+    const db = getFirestore(app);
+
+    async function login() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+        alert("Login effettuato");
+        loadReceipts();
+      } catch (error) {
+        alert("Errore nel login: " + error.message);
+      }
+    }
+
+    const form = document.getElementById('receiptForm');
+    const tableBody = document.querySelector('#receiptsTable tbody');
+
+    async function loadReceipts() {
+      const q = query(collection(db, "receipts"), orderBy("data", "desc"));
+      const querySnapshot = await getDocs(q);
+      tableBody.innerHTML = '';
+      querySnapshot.forEach((doc) => {
+        const r = doc.data();
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${r.nome}</td>
+          <td>${r.corso}</td>
+          <td>${r.lezioni}</td>
+          <td>€ ${r.costo.toFixed(2)}</td>
+          <td>${r.data}</td>
+        `;
+        tableBody.appendChild(row);
+      });
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const nome = document.getElementById('nome').value;
+      const corso = document.getElementById('corso').value;
+      const lezioni = parseInt(document.getElementById('lezioni').value);
+      const costo = parseFloat(document.getElementById('costo').value);
+      const data = new Date().toLocaleDateString();
+
+      try {
+        await addDoc(collection(db, "receipts"), {
+          nome, corso, lezioni, costo, data
+        });
+        form.reset();
+        loadReceipts();
+      } catch (error) {
+        alert("Errore nel salvataggio: " + error.message);
+      }
+    });
+  </script>
+</body>
+</html>
